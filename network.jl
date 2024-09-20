@@ -4,19 +4,25 @@
 using DelimitedFiles
 
 # Record to store in the adjacency list of the network
+# The data type of the vertex labels are fixed to UInt16, [0, 65535]
+# TW        data type of the weight
 mutable struct NtwrkRec
 
     # data fields
     vrtx_end::Int64                         # end vertex id of the directed edge
-    wght_one::Float64                       # first criteria weight value
-    wght_two::Float64                       # second criteria weight value
+    wght_one::Int64                         # first criteria weight value
+    wght_two::Int64                         # second criteria weight value
 
     # Constructor
     # vrtx_end      end vertex id of the directed edge
     # wght_one      first criteria weight value
     # whgt_two      second criteria weight value
     # return        the constructed record
-    function NtwrkRec(vrtx_end::Int64, wght_one::Float64, wght_two::Float64)
+    function NtwrkRec(
+            vrtx_end::Int64, 
+            wght_one::Int64, 
+            wght_two::Int64
+        )
         ar = new(vrtx_end, wght_one, wght_two)
 
         return ar
@@ -34,6 +40,7 @@ mutable struct AdjLst{T}
     function AdjLst{T}() where T
         al = new{T}()
         al.list = fill(Vector{T}([]), 0)
+
         return al
     end
 
@@ -144,7 +151,9 @@ end
 
 # Read network adjacency list from text file that contains a list in 
 # rectangular matrix, the columns are truncated with 0
-function readadj(filename::AbstractString)
+function readadj( 
+        filename::AbstractString
+    )
     in_adjlst_mat = readdlm(filename, Int64)
     numb = maxvrtx(in_adjlst_mat)               # number of vertices in the graph
     alnet = AdjLst{NtwrkRec}(numb)
@@ -153,8 +162,8 @@ function readadj(filename::AbstractString)
         while j <= size(in_adjlst_mat, 2) && in_adjlst_mat[i, j] != 0
             nr = NtwrkRec(
                 in_adjlst_mat[i, j],            # ending edge of the vertex
-                1.0 * in_adjlst_mat[i, j + 1],  # weight value of the first criteria
-                1.0 * in_adjlst_mat[i, j + 2])  # weight value of the second criteria
+                in_adjlst_mat[i, j + 1],        # weight value of the first criteria
+                in_adjlst_mat[i, j + 2])        # weight value of the second criteria
             pushadj!(
                 alnet,                          # adjacency list 
                 i,                              # starting vertex of the edge 
@@ -172,7 +181,7 @@ end
 function toadjmtrx(al::AdjLst{NtwrkRec})
     numb = size(al)                         # number of vertices
 
-    adj_mtrx = Array{Union{Nothing, Pair{Float64, Float64}}}(nothing, numb, numb)
+    adj_mtrx = Array{Union{Nothing, Pair{T, T}}}(nothing, numb, numb)
 
     for i in eachindex(al.list), j in eachindex(al.list[i])
         adj_mtrx[i, al.list[i][j].vrtx_end] = 

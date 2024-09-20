@@ -10,13 +10,13 @@ mutable struct VertRec
 
     # data fields
     id::Int64                               # the id of the vertex
-    dist::Array{Float64}                    # array of two components: length, risk 
+    dist::Array{Int64}                      # array of two components: length, risk 
 
     # Constructor
     # id            id of the vertex
     # dist          array of two components: length, risk
     # return        the constructed record
-    function VertRec(id::Int64, dist::Array{Float64})
+    function VertRec(id::Int64, dist::Array{Int64})
         vr = new(id, dist)
 
         return vr
@@ -33,8 +33,8 @@ mutable struct SpanTree
 
     # data fields
     pred::Vector{Union{Nothing, Int64}}     # list of predecessors
-    lngth::Float64                          # total length of the tree
-    risk::Float64                           # total risk of the tree
+    lngth::Int64                            # total length of the tree
+    risk::Int64                             # total risk of the tree
 
     # Constructor
     # pred          list of predecessors
@@ -43,8 +43,8 @@ mutable struct SpanTree
     # return        the constructed record
     function SpanTree(
             pred::Vector{Union{Nothing, Int64}}, 
-            lngth::Float64, 
-            risk::Float64
+            lngth::Int64, 
+            risk::Int64
         )
         st = new(pred, lngth, risk)
 
@@ -55,26 +55,8 @@ end
 # Display a spanning tree
 # st        spanning tree
 function Base.display(st::SpanTree)
-    #display(st.pred)
     println("Predecesors list: ", st.pred)
     println("Totoal length: ", st.lngth, "\tTotal risk: ", st.risk)
-end
-
-# Implement push! procedure for vector of spanning trees
-# vect      vector of spanning trees (will be modified)
-# st        the spaning tree to be included in the vector
-function append!(
-        vect::Vector{SpanTree},
-        st::SpanTree
-    )
-    if size(vect) == 0
-        # the vector is empty, 
-        # create a vector of single element   
-        vect[vrtx_sta] = [st]
-    else
-         # the vector is not empty, push the tree
-        push!(vect, st)
-    end
 end
 
 # Initialize the shortest distance estimates and predecessors vectors
@@ -85,14 +67,14 @@ end
 #               vstd   Boolean array that stores whether vertex is visited 
 function initsingsrc(
         numb::Int64,
-srce::Int64
+        srce::Int64
     )
-    dist = Vector{Union{Nothing, Array{Float64}}}(nothing, numb)
+    dist = Vector{Union{Nothing, Array{Int64}}}(nothing, numb)
     pred = Vector{Union{Nothing, Int64}}(nothing, numb)
-    vstd = Array{Bool}(undef, numb)
+    vstd = BitArray(undef,  numb)
 
     for i in eachindex(dist)
-        dist[i] = [Inf, Inf]
+        dist[i] = [typemax(Int64), typemax(Int64)]
         vstd[i] = false
     end
     dist[srce] = [0, 0]
@@ -104,9 +86,9 @@ end
 # dist          vector of pairs that determine distance attribute of the MST
 # return        length  total length of the MST
 #               risk    total risk of the MST
-function mstweights(dist::Vector{Union{Nothing, Array{Float64}}})
-    lngth = 0
-    risk = 0
+function mstweights(dist::Vector{Union{Nothing, Array{Int64}}})
+    lngth::Int64 = 0
+    risk::Int64 = 0
 
     for wght_pair in dist
         lngth += wght_pair[1]
@@ -163,7 +145,7 @@ function lengthrisk(
                 dist[end_vrtx] = wght
 
                 # reorder the Fibonacci heap by decreasekey function
-                new_key = VertRec(end_vrtx, wght * 1.0)
+                new_key = VertRec(end_vrtx, wght)
                 decreasekey!(fheap, table[end_vrtx], new_key)
 
                 # set predecessor
@@ -188,11 +170,11 @@ function dfsvisit!(
         alnet::AdjLst{NtwrkRec},
         vstd::BitArray
     )
-    vstd[srce] = 1
+    vstd[srce] = true
 
     # visit each adjacent vertex of the current
     for adj in alnet.list[srce]
-        if vstd[adj.vrtx_end] == 0
+        if vstd[adj.vrtx_end] == false
             dfsvisit!(adj.vrtx_end, alnet, vstd)
         end
     end    
@@ -205,11 +187,16 @@ end
 function isconnect(alnet::AdjLst{NtwrkRec})
 
     # bit array to store for each vertex whether it is visited
-    vstd = BitArray(undef,  numbvert(alnet))    
+    vstd = BitArray(undef,  numbvert(alnet))
+
+    for i in eachindex(vstd)
+        vstd[i] = false
+    end
+
     dfsvisit!(1, al_in_net, vstd)           # call DFS traverse of the network
     result = true                           # if all vertices are visited, true
     for vrtx in vstd
-        if vrtx == 0                        # just one is not visited, false
+        if vrtx == false                    # just one is not visited, false
             result = false
             break
         end
@@ -224,7 +211,7 @@ end
 # risk          boundary risk
 function restrict!(
         alnet::AdjLst{NtwrkRec},
-        risk::Float64
+        risk::Int64
     )
     for vrtx_indx = 1:numbvert(alnet)
         filter!(adj -> adj.wght_two < risk, alnet.list[vrtx_indx])
@@ -240,10 +227,9 @@ function mincomplpf(
         root::Int64
     )
     pf = Vector{SpanTree}()                 # vector to contain the Pareto front
-
     while isconnect(alnet)
         st = lengthrisk(alnet, root)
-        append!(pf, st)
+        push!(pf, st)
         restrict!(alnet, st.risk)
     end
 
@@ -252,7 +238,7 @@ end
 
 # input
 println("--> Input network:")
-al_in_net = readadj("net100.txt")           # input network adjacency list
+al_in_net = readadj("net100_hard.txt")       # input network adjacency list
 println("Size (number of vertics): ", numbvert(al_in_net))
 println("Size (number of edges): ", numbedge(al_in_net))
 
